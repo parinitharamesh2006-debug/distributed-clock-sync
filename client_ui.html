@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Clock Sync — Client</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080e0c;
+    --panel: #0b1510;
+    --border: #1a3a28;
+    --accent: #00ff9d;
+    --accent2: #00d4ff;
+    --warn: #ffb800;
+    --danger: #ff4455;
+    --text: #c0d8cc;
+    --dim: #3a6050;
+    --mono: 'Share Tech Mono', monospace;
+    --sans: 'Rajdhani', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,157,0.012) 2px, rgba(0,255,157,0.012) 4px);
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 32px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(90deg, #0b1510 0%, #091210 100%);
+  }
+
+  .logo { display: flex; align-items: center; gap: 14px; }
+
+  .logo-icon {
+    width: 42px; height: 42px;
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 0 16px rgba(0,255,157,0.4);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%,100% { box-shadow: 0 0 16px rgba(0,255,157,0.4); }
+    50%      { box-shadow: 0 0 30px rgba(0,255,157,0.8); }
+  }
+
+  .logo-text h1 { font-size: 20px; font-weight: 700; letter-spacing: 2px; color: var(--accent); }
+  .logo-text p  { font-size: 12px; color: var(--dim); letter-spacing: 1px; font-family: var(--mono); }
+
+  .status-pill {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 16px;
+    border: 1px solid var(--accent);
+    border-radius: 20px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+  }
+
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: blink 1s ease-in-out infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  main { padding: 24px 32px; display: flex; flex-direction: column; gap: 20px; }
+
+  /* Live clock */
+  .clock-hero {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .clock-hero::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    animation: scan 3s linear infinite;
+  }
+
+  @keyframes scan { from{transform:translateX(-100%)} to{transform:translateX(100%)} }
+
+  .clock-label { font-family: var(--mono); font-size: 11px; color: var(--dim); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; }
+
+  .clock-value { font-family: var(--mono); font-size: 36px; color: var(--accent); letter-spacing: 4px; line-height: 1; }
+
+  .clock-sub { font-family: var(--mono); font-size: 11px; color: var(--dim); margin-top: 8px; }
+
+  .clock-divider { width: 1px; height: 80px; background: var(--border); }
+
+  /* Stats row */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+
+  .stat-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 20px;
+    position: relative; overflow: hidden;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  }
+
+  .stat-label { font-size: 11px; letter-spacing: 1.5px; color: var(--dim); text-transform: uppercase; font-family: var(--mono); margin-bottom: 10px; }
+  .stat-value { font-family: var(--mono); font-size: 26px; color: var(--accent); line-height: 1; }
+  .stat-sub   { font-size: 11px; color: var(--dim); font-family: var(--mono); margin-top: 6px; }
+
+  /* Log */
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+
+  .panel-header {
+    padding: 12px 18px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(0,255,157,0.04);
+  }
+
+  .panel-title { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); font-family: var(--mono); }
+  .panel-badge { margin-left: auto; background: rgba(0,255,157,0.1); border: 1px solid var(--accent); color: var(--accent); font-family: var(--mono); font-size: 10px; padding: 2px 8px; border-radius: 10px; }
+
+  .log-header {
+    display: grid;
+    grid-template-columns: 70px 60px 60px 130px 120px 120px 80px;
+    padding: 6px 18px 8px;
+    border-bottom: 1px solid var(--border);
+    font-size: 10px; letter-spacing: 1px; color: var(--dim); text-transform: uppercase;
+  }
+
+  #log {
+    height: 320px; overflow-y: auto;
+    font-family: var(--mono); font-size: 12px;
+  }
+
+  #log::-webkit-scrollbar { width: 4px; }
+  #log::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .log-row {
+    display: grid;
+    grid-template-columns: 70px 60px 60px 130px 120px 120px 80px;
+    align-items: center;
+    padding: 7px 18px;
+    border-bottom: 1px solid rgba(26,58,40,0.5);
+    animation: fadeIn 0.3s ease;
+  }
+
+  .log-row:hover { background: rgba(0,255,157,0.04); }
+  .log-row.new   { background: rgba(0,255,157,0.08); }
+
+  @keyframes fadeIn { from{opacity:0;transform:translateX(-8px)} to{opacity:1;transform:translateX(0)} }
+
+  .col-time   { color: var(--dim); }
+  .col-seq    { color: var(--dim); }
+  .col-retry  { color: var(--warn); }
+  .col-delay  { color: var(--warn); }
+  .col-offset { color: var(--accent2); }
+  .col-corr   { color: var(--text); font-size: 11px; }
+  .col-status-ok   { color: var(--accent); font-size: 11px; }
+  .col-status-fail { color: var(--danger); font-size: 11px; }
+
+  #empty-state {
+    display: flex; align-items: center; justify-content: center;
+    height: 200px; color: var(--dim); font-family: var(--mono); font-size: 13px; letter-spacing: 1px;
+  }
+
+  /* Timeout banner */
+  #timeout-banner {
+    display: none;
+    background: rgba(255,184,0,0.08);
+    border: 1px solid var(--warn);
+    border-radius: 6px;
+    padding: 10px 18px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--warn);
+    animation: fadeIn 0.3s ease;
+  }
+
+  #timeout-banner.show { display: block; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">📡</div>
+    <div class="logo-text">
+      <h1>CLOCK SYNC CLIENT</h1>
+      <p>UDP · AES-128 · STOP-AND-WAIT ARQ</p>
+    </div>
+  </div>
+  <div class="status-pill"><div class="dot"></div> <span id="status-text">SYNCING</span></div>
+</header>
+
+<main>
+
+  <!-- Live clock hero -->
+  <div class="clock-hero">
+    <div>
+      <div class="clock-label">Raw Local Time</div>
+      <div class="clock-value" id="raw-time">—</div>
+      <div class="clock-sub">system clock</div>
+    </div>
+    <div class="clock-divider"></div>
+    <div>
+      <div class="clock-label">Corrected Time</div>
+      <div class="clock-value" id="corrected-time" style="color:var(--accent2)">—</div>
+      <div class="clock-sub">after offset applied</div>
+    </div>
+    <div class="clock-divider"></div>
+    <div>
+      <div class="clock-label">Client ID</div>
+      <div class="clock-value" id="client-id-display" style="font-size:24px">—</div>
+      <div class="clock-sub" id="server-display">server: —</div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Total Syncs</div>
+      <div class="stat-value" id="total-syncs">0</div>
+      <div class="stat-sub">successful</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Last Delay</div>
+      <div class="stat-value" id="last-delay">—</div>
+      <div class="stat-sub">seconds</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Last Offset</div>
+      <div class="stat-value" id="last-offset">—</div>
+      <div class="stat-sub">seconds</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Retries</div>
+      <div class="stat-value" id="total-retries">0</div>
+      <div class="stat-sub">packet retransmissions</div>
+    </div>
+  </div>
+
+  <!-- Timeout banner -->
+  <div id="timeout-banner">⚠ Packet timeout — retransmitting... (Stop-and-Wait ARQ in action)</div>
+
+  <!-- Log -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">Sync Log</div>
+      <div class="panel-badge" id="log-count">0 syncs</div>
+    </div>
+    <div class="log-header">
+      <span>Time</span><span>Seq</span><span>Retry</span>
+      <span>Delay (s)</span><span>Offset (s)</span><span>Corrected Time</span><span>Status</span>
+    </div>
+    <div id="log"><div id="empty-state">Waiting for first sync...</div></div>
+  </div>
+
+</main>
+
+<script>
+  let totalSyncs = 0, totalRetries = 0;
+  let currentOffset = 0;
+
+  // Tick the corrected clock every second
+  setInterval(() => {
+    const now = new Date();
+    document.getElementById('raw-time').textContent = now.toTimeString().split(' ')[0];
+    const corrected = new Date(now.getTime() + currentOffset * 1000);
+    if (totalSyncs > 0)
+      document.getElementById('corrected-time').textContent = corrected.toTimeString().split(' ')[0];
+  }, 1000);
+
+  const log      = document.getElementById('log');
+  const logCount = document.getElementById('log-count');
+
+  const es = new EventSource('http://localhost:5001/stream');
+
+  es.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'ping') return;
+
+    if (msg.type === 'timeout') {
+      const banner = document.getElementById('timeout-banner');
+      banner.classList.add('show');
+      setTimeout(() => banner.classList.remove('show'), 4000);
+    }
+
+    if (msg.type === 'sync') {
+      const d = msg.data;
+
+      document.getElementById('client-id-display').textContent = d.client_id;
+      document.getElementById('server-display').textContent = 'server: 10.30.201.17';
+
+      if (d.status === 'success') {
+        totalSyncs++;
+        currentOffset = d.offset;
+        totalRetries += d.retries;
+        document.getElementById('last-delay').textContent  = d.delay;
+        document.getElementById('last-offset').textContent = d.offset;
+        document.getElementById('total-syncs').textContent   = totalSyncs;
+        document.getElementById('total-retries').textContent = totalRetries;
+      }
+
+      const empty = document.getElementById('empty-state');
+      if (empty) empty.remove();
+
+      const row = document.createElement('div');
+      row.className = 'log-row new';
+      row.innerHTML = `
+        <span class="col-time">${d.time}</span>
+        <span class="col-seq">#${d.seq}</span>
+        <span class="col-retry">${d.retries > 0 ? d.retries + 'x' : '—'}</span>
+        <span class="col-delay">${d.delay || '—'}</span>
+        <span class="col-offset">${d.offset || '—'}</span>
+        <span class="col-corr">${d.corrected}</span>
+        <span class="${d.status === 'success' ? 'col-status-ok' : 'col-status-fail'}">${d.status === 'success' ? '✓ OK' : '✗ LOST'}</span>`;
+      log.prepend(row);
+      setTimeout(() => row.classList.remove('new'), 600);
+      logCount.textContent = `${totalSyncs} syncs`;
+    }
+
+    if (msg.type === 'error') {
+      const banner = document.getElementById('timeout-banner');
+      banner.textContent = `⚠ ${msg.data.msg}`;
+      banner.classList.add('show');
+      setTimeout(() => banner.classList.remove('show'), 4000);
+    }
+  };
+
+  es.onerror = () => {
+    document.getElementById('status-text').textContent = 'DISCONNECTED';
+    document.querySelector('.status-pill').style.borderColor = 'var(--danger)';
+    document.querySelector('.status-pill').style.color = 'var(--danger)';
+    document.querySelector('.dot').style.background = 'var(--danger)';
+  };
+</script>
+</body>
+</html>
